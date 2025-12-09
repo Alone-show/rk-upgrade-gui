@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>RkButton.qml</file>
+        <file>VLine.qml</file>
+        <file>EditableCell.qml</file>
+        <file>PageDownload.qml</file>
+        <file>PageUpgrade.qml</file>
+        <file>CustomFileDialog.qml</file>
+        <file>AppState.qml</file>
+    </qresource>
+</RCC>
