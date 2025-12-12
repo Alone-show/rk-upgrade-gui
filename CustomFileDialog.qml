@@ -18,7 +18,8 @@ Popup {
     // --- 弹窗配置 ---
     modal: true
     focus: true
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    // closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    closePolicy: Popup.NoAutoClose
     anchors.centerIn: Overlay.overlay
     width: 600
     height: 450
