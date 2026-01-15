@@ -175,7 +175,7 @@ void RkUpgradeTool::startProcess(QProcess *process,
         if(process)
         {
             QByteArray data = process->readAllStandardOutput();
-            // qDebug() << "STDOUT:" << data;
+            qDebug() << "STDOUT:" << data;
             recevCallback(QString(data));
         }
         else{
@@ -186,7 +186,7 @@ void RkUpgradeTool::startProcess(QProcess *process,
         if(process)
         {
             QByteArray data = process->readAllStandardError();
-            // qDebug() << "ERROUT:" << data;
+            qDebug() << "ERROUT:" << data;
             recevCallback(QString(data));
         }
         else{
@@ -195,7 +195,18 @@ void RkUpgradeTool::startProcess(QProcess *process,
     });
 
     // 启动进程
-    process->start(command, arguments);
+
+
+    QStringList quotedArgs;
+    quotedArgs << command; // 程序名
+    for (const QString &arg : arguments) {
+        quotedArgs << QString("\"%1\"").arg(arg); // 给每个参数加引号，防止空格断开
+    }
+    QString fullTask = quotedArgs.join(" ");
+
+    QStringList scriptArgs;
+    scriptArgs << "-qf" << "-c" << fullTask << "/dev/null";
+    process->start("script", scriptArgs);
 }
 
 void RkUpgradeTool::startProcess(QProcess *process,
@@ -340,5 +351,71 @@ QObject* RkUpgradeTool::instance(QQmlEngine* engine, QJSEngine* scriptEngine) {
     return m_instance;
 }
 
+
+void RkUpgradeTool::startProcessWithAnsiHandling(QProcess *process,
+                                                 const QString &command,
+                                                 const QStringList &arguments,
+                                                 std::function<void(int, QProcess::ExitStatus)> finishCallback,
+                                                 std::function<void(QString)> recevCallback)
+{
+    if (!process) {
+        process = new QProcess(this);
+    }
+
+    if (process->state() != QProcess::NotRunning) {
+        qWarning() << "Process already running:" << command << arguments;
+        finishCallback(-1, QProcess::CrashExit);
+        return;
+    }
+
+    process->disconnect();
+
+    // 连接 finished
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [process, finishCallback](int exitCode, QProcess::ExitStatus exitStatus){
+                finishCallback(exitCode, exitStatus);
+            });
+
+    // 连接 stdout
+    connect(process, &QProcess::readyReadStandardOutput, this, [process, recevCallback](){
+        QByteArray data = process->readAllStandardError();
+        QString strData = QString::fromUtf8(data);
+        // strData.replace(QRegularExpression("\033\\[[0-9;]*[A-Za-z]"), "");
+        // strData.replace("\r", "\n");
+        qDebug() << "std:" << strData;
+        recevCallback(strData);
+    });
+
+    // 连接 stderr
+    connect(process, &QProcess::readyReadStandardError, this, [process, recevCallback](){
+        QByteArray data = process->readAllStandardError();
+        QString strData = QString::fromUtf8(data);
+        // strData.replace(QRegularExpression("\033\\[[0-9;]*[A-Za-z]"), "");
+        // strData.replace("\r", "\n");
+        qDebug() << "err:" << strData;
+        recevCallback(strData);
+    });
+
+    // 启动进程
+    qDebug() << "S111tarting process:" << command << arguments;
+    // process->start(command, arguments);
+
+    // if (!process->waitForStarted(3000)) {
+    //     qWarning() << "Failed to start process:" << command;
+    //     finishCallback(-1, QProcess::CrashExit);
+    // }
+
+    QStringList scriptArgs;
+    scriptArgs << "-q" << "-c";
+    QString cmdline = command + " " + arguments.join(" ");
+    scriptArgs << cmdline ;
+
+    process->start("script", scriptArgs);
+
+    if (!process->waitForStarted(3000)) {
+        qWarning() << "Failed to start process:" << command;
+        finishCallback(-1, QProcess::CrashExit);
+    }
+}
 
 
